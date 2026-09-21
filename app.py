@@ -1,71 +1,53 @@
 import streamlit as st
-import pandas as pd
 import joblib
+import numpy as np
 
-# Load the trained model and scaler
-# Make sure 'logistic_regression_model_and_scaler.joblib' is in the same directory as app.py
-try:
-    model_components = joblib.load('logistic_regression_model_and_scaler.joblib')
-    model = model_components['model']
-    scaler = model_components['scaler']
-except FileNotFoundError:
-    st.error("Error: 'logistic_regression_model_and_scaler.joblib' not found. Please ensure the file is in the same directory as app.py")
-    st.stop()
-except KeyError as e:
-    st.error(f"Error loading model components: {e}. Make sure the joblib file contains 'model' and 'scaler'.")
-    st.stop()
+# Load the trained model
+model = joblib.load('Delivery_Delay.sav')
 
-st.title('Delivery Delay Prediction App')
-st.write('Enter the details below to predict if there will be a delivery delay.')
+st.title('Delivery Delay Prediction')
+st.write('Enter the features below to predict if a delivery will be delayed.')
 
-# Define the input features based on the original DataFrame columns
-# x.columns: Index(['Delivery_Distance', 'Traffic_Congestion', 'Weather_Condition',
-#        'Delivery_Slot', 'Vehicle_Type', 'Driver_Experience', 'Customer_Rating',
-#        'Preparation_Time', 'Peak_Hour', 'Delivery_Area', 'Number_of_Items'],
-#       dtype='object')
-
-delivery_distance = st.slider('Delivery Distance (km)', 1.0, 100.0, 20.0)
+# Input features from the user
+delivery_distance = st.slider('Delivery Distance', 0.0, 100.0, 50.0)
 traffic_congestion = st.slider('Traffic Congestion (1-5, 5 being highest)', 1, 5, 3)
-weather_condition = st.slider('Weather Condition (1:Clear, 2:Rainy, 3:Foggy, 4:Snowy, 5:Stormy)', 1, 5, 2)
-delivery_slot = st.slider('Delivery Slot (1:Morning, 2:Afternoon, 3:Evening)', 1, 3, 2)
-vehicle_type = st.slider('Vehicle Type (1:Bike, 2:Car, 3:Van)', 1, 3, 2)
-driver_experience = st.slider('Driver Experience (years)', 0, 30, 5)
-customer_rating = st.slider('Customer Rating (1-5)', 1.0, 5.0, 4.0)
-preparation_time = st.slider('Preparation Time (minutes)', 5, 60, 20)
-peak_hour = st.radio('Is it a Peak Hour?', [0, 1], index=0, format_func=lambda x: 'Yes' if x==1 else 'No') # 0 for No, 1 for Yes
-delivery_area = st.slider('Delivery Area (1-100, larger value for complex area)', 1, 100, 50)
-number_of_items = st.slider('Number of Items', 1, 50, 5)
+weather_condition = st.slider('Weather Condition (1-5, 5 being worst)', 1, 5, 3)
+delivery_slot = st.slider('Delivery Slot (1-3)', 1, 3, 2)
+driver_experience = st.slider('Driver Experience (Years)', 0, 30, 10)
+num_stops = st.slider('Number of Stops', 0, 20, 5)
+vehicle_age = st.slider('Vehicle Age (Years)', 0, 15, 5)
+road_condition_score = st.slider('Road Condition Score (1-5, 5 being best)', 1, 5, 3)
+package_weight = st.slider('Package Weight (kg)', 0.0, 50.0, 10.0)
+fuel_efficiency = st.slider('Fuel Efficiency (km/l)', 0.0, 30.0, 15.0)
+warehouse_processing_time = st.slider('Warehouse Processing Time (minutes)', 0, 120, 60)
 
-# Create a DataFrame from the inputs
-input_data = pd.DataFrame([[delivery_distance,
-                            traffic_congestion,
-                            weather_condition,
-                            delivery_slot,
-                            vehicle_type,
-                            driver_experience,
-                            customer_rating,
-                            preparation_time,
-                            peak_hour,
-                            delivery_area,
-                            number_of_items]], 
-                            columns=['Delivery_Distance', 'Traffic_Congestion', 'Weather_Condition', 
-                                     'Delivery_Slot', 'Vehicle_Type', 'Driver_Experience', 
-                                     'Customer_Rating', 'Preparation_Time', 'Peak_Hour', 
-                                     'Delivery_Area', 'Number_of_Items'])
-
+# Create a button for prediction
 if st.button('Predict Delivery Delay'):
-    # Scale the input data
-    scaled_input = scaler.transform(input_data)
-    
+    # Prepare the input array for the model
+    # Ensure the order matches the features used during training
+    input_features = np.array([
+        delivery_distance,
+        traffic_congestion,
+        weather_condition,
+        delivery_slot,
+        driver_experience,
+        num_stops,
+        vehicle_age,
+        road_condition_score,
+        package_weight,
+        fuel_efficiency,
+        warehouse_processing_time
+    ]).reshape(1, -1)
+
     # Make prediction
-    prediction = model.predict(scaled_input)
-    prediction_proba = model.predict_proba(scaled_input)
-    
-    st.subheader('Prediction Result:')
+    prediction = model.predict(input_features)
+    prediction_proba = model.predict_proba(input_features)
+
+    st.subheader('Prediction Results:')
     if prediction[0] == 1:
-        st.error('There is a HIGH likelihood of Delivery Delay.')
+        st.error('The delivery is predicted to be DELAYED.')
     else:
-        st.success('Delivery is likely to be ON TIME.')
-        
+        st.success('The delivery is predicted to be ON TIME.')
+
     st.write(f"Probability of No Delay: {prediction_proba[0][0]:.2f}")
     st.write(f"Probability of Delay: {prediction_proba[0][1]:.2f}")
